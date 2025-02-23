@@ -12,9 +12,9 @@ const menuItems = [
     icon: '🏠'
   },
   {
-    path: '/capsule-vault/dashboard',
-    label: 'Dashboard',
-    icon: '📊'
+    path: '/capsule-vault/sentiment-analysis',
+    label: 'AI Sentiment',
+    icon: '🎭'
   },
   {
     path: '/capsule-vault/capsules',
@@ -108,12 +108,12 @@ export default function Sidebar() {
       <div className="absolute bottom-0 w-full p-6 border-t border-memovault-salmon/10 bg-white/50">
         <div className={`flex items-center gap-4 ${isCollapsed ? 'justify-center' : ''}`}>
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-memovault-salmon to-memovault-salmon/80 flex items-center justify-center text-white text-xl shadow-lg">
-            JD
+            SM
           </div>
           {!isCollapsed && (
             <div>
-              <p className="font-medium text-black">John Doe</p>
-              <p className="text-sm text-black/60">john@example.com</p>
+              <p className="font-medium text-black">Subrat Malla</p>
+              <p className="text-sm text-black/60">subrat@gmail.com</p>
             </div>
           )}
         </div>

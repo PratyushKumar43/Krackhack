@@ -3,6 +3,7 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
+import TextAlign from '@tiptap/extension-text-align';
 import {
   Bold,
   Italic,
@@ -16,6 +17,7 @@ import {
   AlignCenter,
   AlignRight,
 } from 'lucide-react';
+import clsx from 'clsx';
 
 interface RichTextEditorProps {
   content: string;
@@ -28,32 +30,35 @@ const MenuButton = ({
   disabled = false,
   children 
 }: { 
-  onClick: () => void; 
+  onClick?: () => void; 
   isActive?: boolean; 
   disabled?: boolean;
   children: React.ReactNode;
-}) => (
-  <button
-    onClick={onClick}
-    disabled={disabled}
-    className={`p-2 rounded hover:bg-memovault-peach/20 transition-colors ${
-      isActive ? 'bg-memovault-salmon text-white hover:bg-memovault-salmon/90' : 
-      disabled ? 'opacity-50 cursor-not-allowed' : ''
-    }`}
-  >
-    {children}
-  </button>
-);
+}) => {
+  return (
+    <button
+      onClick={() => onClick?.()}
+      disabled={disabled}
+      className={clsx(
+        'p-2 rounded hover:bg-memovault-peach/20 transition-colors',
+        isActive ? 'bg-memovault-salmon text-white hover:bg-memovault-salmon/90' : 
+        disabled ? 'opacity-50 cursor-not-allowed' : ''
+      )}
+    >
+      {children}
+    </button>
+  );
+};
 
 const RichTextEditor = ({ content, onChange }: RichTextEditorProps) => {
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({
-        heading: {
-          levels: [1, 2, 3]
-        }
+      StarterKit,
+      Image,
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
+        alignments: ['left', 'center', 'right'],
       }),
-      Image
     ],
     content,
     onUpdate: ({ editor }) => {
