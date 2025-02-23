@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import RichTextEditor from '@/components/editor/RichTextEditor';
+import { BASE_URL } from '@/app/config';
 
 export default function CreateCapsule() {
   const router = useRouter();
@@ -34,15 +35,65 @@ export default function CreateCapsule() {
     setIsSubmitting(true);
 
     try {
-      // TODO: Implement actual API call to create capsule
-      // For now, just simulate an API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Validate inputs
+      if (!title || !content || !unlockDate) {
+        throw new Error('Please fill in all required fields');
+      }
+
+      // First, upload all files and get their URLs
+      const fileUrls = [];
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const uploadRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/upload`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!uploadRes.ok) {
+          throw new Error('Failed to upload file');
+        }
+
+        const { url } = await uploadRes.json();
+        fileUrls.push(url);
+      }
+
+      // Get token from localStorage
+      const token = localStorage.getItem('token');
+      if (!token) {
+        router.push('/auth/login');
+        return;
+      }
+
+      // Create the capsule
+      const res = await fetch(`${BASE_URL}/capsule/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title,
+          description: content,
+          // files: fileUrls,
+          date: unlockDate
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || 'Failed to create capsule');
+      }
+
+      // Show success message
+      alert('Time capsule created successfully!');
       
-      // Redirect to dashboard after successful creation
+      // Redirect to dashboard
       router.push('/capsule-vault/dashboard');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating capsule:', error);
-      // TODO: Show error message to user
+      alert(error.message || 'Failed to create capsule');
     } finally {
       setIsSubmitting(false);
     }

@@ -2,16 +2,16 @@ import Capsule from "../models/CapsuleSchema.js";
 
 // Create new capsule
 export const createCapsule = async (req, res) => {
-  const { description, photos, videos, date } = req.body;
+  const { title, description, files, date } = req.body;
   
   const userId = req.userId; // Assuming user ID is set by auth middleware
 
   try {
     const newCapsule = new Capsule({
       user: userId,
+      title,
       description,
-      photos: photos || [],
-      videos: videos || [],
+      files: files || [],
       date,
       lock: false
     });
@@ -34,7 +34,7 @@ export const createCapsule = async (req, res) => {
 
 // Update capsule
 export const updateCapsule = async (req, res) => {
-  const { description, photos, videos } = req.body;
+  const { title, description, files } = req.body;
   const capsuleId = req.params.id;
   const userId = req.userId; // Assuming user ID is set by auth middleware
 
@@ -69,9 +69,9 @@ export const updateCapsule = async (req, res) => {
     const updateCapsule = await Capsule.findByIdAndUpdate(
       capsuleId,
       {
+        title: title || capsule.title,
         description: description || capsule.description,
-        photos: photos || capsule.photos,
-        videos: videos || capsule.videos
+        files: files || capsule.files
       },
       { new: true }
     );
@@ -97,17 +97,17 @@ export const getCapsules = async (req, res) => {
   try {
     const capsules = await Capsule.find({ user: userId })
       .sort({ createdAt: -1 }) // Sort by newest first
-      .populate("user", "name email"); // Populate user details except password
+      .populate("user", "username email"); // Populate user details except password
 
     res.status(200).json({
       success: true,
-      message: "Capsules fetched successfully",
+      message: "Capsules retrieved successfully",
       data: capsules
     });
   } catch (err) {
     res.status(500).json({
       success: false,
-      message: "Failed to fetch capsules",
+      message: "Failed to get capsules",
       error: err.message
     });
   }

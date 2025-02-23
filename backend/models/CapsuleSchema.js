@@ -6,6 +6,10 @@ const CapsuleSchema = new mongoose.Schema({
     ref: "User",
     required: true 
   },
+  title: {
+    type: String,
+    required: true
+  },
   date: {
     type: String,
     required: true
@@ -18,10 +22,7 @@ const CapsuleSchema = new mongoose.Schema({
     type: String, 
     required: true 
   },
-  photos: [{ 
-    type: String 
-  }],
-  videos: [{ 
+  files: [{ 
     type: String 
   }],
 }, {

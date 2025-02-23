@@ -39,6 +39,13 @@ const SignupPage = () => {
       return false;
     }
 
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+
     return true;
   };
 
@@ -71,10 +78,14 @@ const SignupPage = () => {
         throw new Error(data.message || 'Registration failed');
       }
 
+      // Show success message
+      alert('Registration successful! Please login to continue.');
+
       // Redirect to login page after successful registration
       router.push('/auth/login');
     } catch (err: any) {
       setError(err.message || 'Something went wrong');
+      alert(err.message || 'Registration failed');
     } finally {
       setLoading(false);
     }

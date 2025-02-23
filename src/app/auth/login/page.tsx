@@ -19,6 +19,10 @@ export default function Login() {
     setLoading(true);
 
     try {
+      if (!email || !password) {
+        throw new Error('Please fill in all fields');
+      }
+
       const res = await fetch(`${BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
@@ -34,12 +38,18 @@ export default function Login() {
       }
 
       // Store token and user data
-      // localStorage.setItem('token', data.token);
+      localStorage.setItem('token', data.token);
       if (rememberMe) {
-        // localStorage.setItem('user', JSON.stringify(data.data));
+        localStorage.setItem('user', JSON.stringify(data.data));
       }
-      router.push('/capsule-vault');
+
+      // Show success message
+      alert('Login successful!');
+
+      // Redirect to capsule vault
+      router.push('/capsule-vault/dashboard');
     } catch (error: any) {
+      alert(error.message || 'Login failed');
     } finally {
       setLoading(false);
     }

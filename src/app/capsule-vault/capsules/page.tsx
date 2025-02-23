@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { BASE_URL } from '@/app/config';
 
 // Mock data for development - will be replaced with real API calls
 const mockCapsules = [
