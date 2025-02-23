@@ -4,6 +4,8 @@ import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { BASE_URL } from '@/app/config';
+import UploadMedia from '@/components/UploadMedia';
+import { toast } from 'react-hot-toast';
 
 // Mock data for development - will be replaced with real API calls
 const mockCapsules = [
@@ -40,6 +42,16 @@ export default function Capsules() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all'); // all, locked, unlocked
   const [sortBy, setSortBy] = useState('date'); // date, title, status
+  const [uploadedUrls, setUploadedUrls] = useState<string[]>([]);
+
+  const handleUploadComplete = (urls: string[]) => {
+    setUploadedUrls(prev => [...prev, ...urls]);
+    toast.success('Images uploaded successfully!');
+  };
+
+  const handleUploadError = (error: string) => {
+    toast.error(error);
+  };
 
   // Filter and sort capsules
   const filteredCapsules = mockCapsules
@@ -66,6 +78,29 @@ export default function Capsules() {
 
         {/* Filters and Search */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+          {/* Upload Section */}
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold text-black mb-4">Add Photos/Videos</h2>
+            <UploadMedia 
+              onUploadComplete={handleUploadComplete}
+              onError={handleUploadError}
+            />
+            {uploadedUrls.length > 0 && (
+              <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+                {uploadedUrls.map((url, index) => (
+                  <div key={index} className="relative aspect-square">
+                    <Image
+                      src={url}
+                      alt={`Uploaded image ${index + 1}`}
+                      fill
+                      className="object-cover rounded-lg"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-black mb-2">

@@ -5,29 +5,62 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import RichTextEditor from '@/components/editor/RichTextEditor';
 import { BASE_URL } from '@/app/config';
+import { toast } from 'react-hot-toast';
+import { v4 as uuidv4 } from 'uuid';
+import { supabase } from '@/utils/supabaseClient';
 
 export default function CreateCapsule() {
   const router = useRouter();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [unlockDate, setUnlockDate] = useState('');
-  const [files, setFiles] = useState<File[]>([]);
-  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [uploadedUrls, setUploadedUrls] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(e.target.files || []);
-    setFiles(prev => [...prev, ...selectedFiles]);
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      const files = event.target.files;
+      if (!files || files.length === 0) return;
 
-    // Create preview URLs for the selected files
-    const newPreviewUrls = selectedFiles.map(file => URL.createObjectURL(file));
-    setPreviewUrls(prev => [...prev, ...newPreviewUrls]);
+      const newUploadedUrls: string[] = [];
+
+      for (const file of files) {
+        // Check file type
+        if (!file.type.startsWith('image/')) {
+          throw new Error('Only image files are allowed');
+        }
+
+        // Check file size (7MB limit)
+        if (file.size > 7 * 1024 * 1024) {
+          throw new Error('File size must be less than 7MB');
+        }
+
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${uuidv4()}.${fileExt}`;
+
+        const { data, error } = await supabase.storage
+          .from('Memories')
+          .upload(fileName, file);
+
+        if (error) throw error;
+
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('Memories')
+          .getPublicUrl(fileName);
+
+        newUploadedUrls.push(publicUrl);
+      }
+
+      setUploadedUrls(prev => [...prev, ...newUploadedUrls]);
+      toast.success('Images uploaded successfully!');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'An error occurred during upload');
+    }
   };
 
   const removeFile = (index: number) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
-    URL.revokeObjectURL(previewUrls[index]);
-    setPreviewUrls(prev => prev.filter((_, i) => i !== index));
+    setUploadedUrls(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,25 +71,6 @@ export default function CreateCapsule() {
       // Validate inputs
       if (!title || !content || !unlockDate) {
         throw new Error('Please fill in all required fields');
-      }
-
-      // First, upload all files and get their URLs
-      const fileUrls = [];
-      for (const file of files) {
-        const formData = new FormData();
-        formData.append('file', file);
-        
-        const uploadRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/upload`, {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!uploadRes.ok) {
-          throw new Error('Failed to upload file');
-        }
-
-        const { url } = await uploadRes.json();
-        fileUrls.push(url);
       }
 
       // Get token from localStorage
@@ -76,7 +90,7 @@ export default function CreateCapsule() {
         body: JSON.stringify({
           title,
           description: content,
-          // files: fileUrls,
+          files: uploadedUrls, // Now using the Supabase URLs
           date: unlockDate
         }),
       });
@@ -86,34 +100,25 @@ export default function CreateCapsule() {
         throw new Error(data.message || 'Failed to create capsule');
       }
 
-      // Show success message
-      alert('Time capsule created successfully!');
-      
-      // Redirect to dashboard
+      toast.success('Time capsule created successfully!');
       router.push('/capsule-vault/dashboard');
     } catch (error: any) {
       console.error('Error creating capsule:', error);
-      alert(error.message || 'Failed to create capsule');
+      toast.error(error.message || 'Failed to create capsule');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Calculate minimum date (today) and maximum date (50 years from now)
-  const today = new Date().toISOString().split('T')[0];
-  const maxDate = new Date();
-  maxDate.setFullYear(maxDate.getFullYear() + 50);
-  const maxDateStr = maxDate.toISOString().split('T')[0];
-
   return (
     <main className="container mx-auto px-4 py-8">
-      <div className="max-w-3xl mx-auto">
-        <h1 className="text-3xl font-bold text-black mb-8">Create New Time Capsule</h1>
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-3xl font-bold mb-8">Create New Time Capsule</h1>
         
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Title Input */}
           <div>
-            <label htmlFor="title" className="block text-sm font-medium text-black mb-2">
+            <label htmlFor="title" className="block text-sm font-medium mb-2">
               Title
             </label>
             <input
@@ -121,56 +126,59 @@ export default function CreateCapsule() {
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-4 py-2 border border-memovault-salmon rounded-lg focus:outline-none focus:ring-2 focus:ring-memovault-salmon"
-              placeholder="Give your capsule a memorable title"
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-memovault-salmon"
+              placeholder="Enter capsule title"
               required
             />
           </div>
 
           {/* Rich Text Editor */}
           <div>
-            <label className="block text-sm font-medium text-black mb-2">
-              Memory Content
+            <label className="block text-sm font-medium mb-2">
+              Content
             </label>
             <RichTextEditor content={content} onChange={setContent} />
           </div>
 
           {/* File Upload */}
           <div>
-            <label className="block text-sm font-medium text-black mb-2">
+            <label className="block text-sm font-medium mb-2">
               Add Photos/Videos
             </label>
-            <div className="border-2 border-dashed border-memovault-salmon rounded-lg p-4">
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
               <input
                 type="file"
-                accept="image/*,video/*"
-                onChange={handleFileChange}
-                className="w-full"
                 multiple
+                accept="image/*"
+                onChange={handleFileUpload}
+                className="w-full"
               />
-              <p className="text-sm text-black/60 mt-2">
+              <p className="text-sm text-gray-500 mt-2">
                 Drag and drop files here or click to select files
               </p>
             </div>
 
             {/* Preview Grid */}
-            {previewUrls.length > 0 && (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
-                {previewUrls.map((url, index) => (
-                  <div key={url} className="relative">
-                    <Image
-                      src={url}
-                      alt={`Preview ${index + 1}`}
-                      width={200}
-                      height={200}
-                      className="rounded-lg object-cover w-full h-32"
-                    />
+            {uploadedUrls.length > 0 && (
+              <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+                {uploadedUrls.map((url, index) => (
+                  <div key={index} className="relative group">
+                    <div className="relative aspect-square">
+                      <Image
+                        src={url}
+                        alt={`Uploaded image ${index + 1}`}
+                        fill
+                        className="object-cover rounded-lg"
+                      />
+                    </div>
                     <button
                       type="button"
                       onClick={() => removeFile(index)}
-                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      ×
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
                     </button>
                   </div>
                 ))}
@@ -180,7 +188,7 @@ export default function CreateCapsule() {
 
           {/* Unlock Date */}
           <div>
-            <label htmlFor="unlockDate" className="block text-sm font-medium text-black mb-2">
+            <label htmlFor="unlockDate" className="block text-sm font-medium mb-2">
               Unlock Date
             </label>
             <input
@@ -188,31 +196,19 @@ export default function CreateCapsule() {
               id="unlockDate"
               value={unlockDate}
               onChange={(e) => setUnlockDate(e.target.value)}
-              min={today}
-              max={maxDateStr}
-              className="w-full px-4 py-2 border border-memovault-salmon rounded-lg focus:outline-none focus:ring-2 focus:ring-memovault-salmon"
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-memovault-salmon"
               required
             />
-            <p className="text-sm text-black/60 mt-1">
-              Choose when your capsule will be unlocked (up to 50 years from now)
-            </p>
           </div>
 
           {/* Submit Button */}
-          <div className="flex justify-end gap-4">
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="px-6 py-2 border border-memovault-salmon text-memovault-salmon rounded-lg hover:bg-memovault-salmon hover:text-white transition-colors"
-            >
-              Cancel
-            </button>
+          <div>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-6 py-2 bg-memovault-salmon text-white rounded-lg hover:bg-black transition-colors disabled:bg-gray-400"
+              className="w-full bg-memovault-salmon text-white py-3 px-6 rounded-lg hover:bg-memovault-salmon/90 disabled:opacity-50"
             >
-              {isSubmitting ? 'Creating...' : 'Create Capsule'}
+              {isSubmitting ? 'Creating...' : 'Create Time Capsule'}
             </button>
           </div>
         </form>
