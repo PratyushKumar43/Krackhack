@@ -11,7 +11,7 @@ const generateToken = (user) => {
 };
 
 export const register = async (req, res) => {
-  const { email, password, name } = req.body;
+  const { email, password, username } = req.body;
 
   try {
     // Check if user exists
@@ -29,7 +29,7 @@ export const register = async (req, res) => {
 
     // Create new user
     const newUser = new User({
-      name,
+      username,
       email,
       password: hashPassword
     });
