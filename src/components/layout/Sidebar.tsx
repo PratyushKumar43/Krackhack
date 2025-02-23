@@ -17,6 +17,11 @@ const menuItems = [
     icon: '📊'
   },
   {
+    path: '/capsule-vault/capsules',
+    label: 'Capsules',
+    icon: '📦'
+  },
+  {
     path: '/capsule-vault/create',
     label: 'Create Capsule',
     icon: '✨'
