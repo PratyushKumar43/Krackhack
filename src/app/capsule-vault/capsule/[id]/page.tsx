@@ -2,160 +2,151 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { BASE_URL } from '@/app/config';
+import { toast } from 'react-hot-toast';
 
-// Mock data - will be replaced with API call
-const mockCapsule = {
-  id: '1',
-  title: 'Summer Memories 2024',
-  content: `<h2>My Amazing Summer</h2>
-    <p>This summer was filled with incredible moments and unforgettable memories...</p>
-    <ul>
-      <li>Beach trip with friends</li>
-      <li>Mountain hiking adventure</li>
-      <li>Family barbecue</li>
-    </ul>`,
-  unlockDate: '2025-06-01',
-  status: 'locked',
-  createdAt: '2024-01-15',
-  images: [
-    'https://readymadeui.com/photo.webp',
-    'https://readymadeui.com/photo.webp'
-  ],
-  owner: {
-    name: 'John Doe',
-    email: 'john@example.com'
-  }
-};
+interface Capsule {
+  _id: string;
+  title: string;
+  description: string;
+  date: string;
+  files: string[];
+  createdAt: string;
+  user: {
+    username: string;
+    email: string;
+  };
+}
 
-export default function CapsuleDetails() {
+export default function CapsuleDetails({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const params = useParams();
-  const [isLoading, setIsLoading] = useState(true);
-  const [capsule, setCapsule] = useState(mockCapsule);
-  const [timeUntilUnlock, setTimeUntilUnlock] = useState('');
+  const [capsule, setCapsule] = useState<Capsule | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setCapsule(mockCapsule);
-      setIsLoading(false);
-    }, 1000);
-  }, []);
-
-  useEffect(() => {
-    if (capsule.status === 'locked') {
-      const interval = setInterval(() => {
-        const now = new Date();
-        const unlockDate = new Date(capsule.unlockDate);
-        const diff = unlockDate.getTime() - now.getTime();
-
-        if (diff <= 0) {
-          setTimeUntilUnlock('Unlocked!');
+    const fetchCapsule = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          router.push('/auth/login');
           return;
         }
 
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+        const response = await fetch(`${BASE_URL}/capsule/${params.id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
 
-        setTimeUntilUnlock(`${days}d ${hours}h ${minutes}m ${seconds}s`);
-      }, 1000);
+        const result = await response.json();
 
-      return () => clearInterval(interval);
-    }
-  }, [capsule.status, capsule.unlockDate]);
+        if (result.success) {
+          setCapsule(result.data);
+        } else {
+          toast.error(result.message || 'Failed to fetch capsule');
+          if (response.status === 404) {
+            router.push('/capsule-vault/capsules');
+          }
+        }
+      } catch (error) {
+        toast.error('Error fetching capsule');
+        console.error('Error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  if (isLoading) {
+    fetchCapsule();
+  }, [params.id, router]);
+
+  const formatDescription = (description: string) => {
+    return description.replace(/^<p>|<\/p>$/g, '');
+  };
+
+  const isUnlocked = (date: string) => {
+    const unlockDate = new Date(date);
+    const currentDate = new Date();
+    return currentDate >= unlockDate;
+  };
+
+  if (loading) {
     return (
-      <main className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-memovault-salmon/20 rounded w-1/3"></div>
-            <div className="h-4 bg-memovault-salmon/20 rounded w-1/4"></div>
-            <div className="h-64 bg-memovault-salmon/20 rounded"></div>
-          </div>
+          <div className="text-center">Loading capsule details...</div>
         </div>
-      </main>
+      </div>
+    );
+  }
+
+  if (!capsule) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center">Capsule not found</div>
+        </div>
+      </div>
     );
   }
 
   return (
-    <main className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-black mb-2">{capsule.title}</h1>
-          <p className="text-black/60">
-            Created on {new Date(capsule.createdAt).toLocaleDateString()}
-          </p>
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h1 className="text-3xl font-bold text-black mb-2">{capsule.title}</h1>
+              <p className="text-gray-600">Created by {capsule.user.username}</p>
+            </div>
+            <span className={`px-4 py-2 rounded-full text-sm ${
+              !isUnlocked(capsule.date)
+                ? 'bg-red-100 text-red-600'
+                : 'bg-green-100 text-green-600'
+            }`}>
+              {!isUnlocked(capsule.date) ? 'Locked' : 'Unlocked'}
+            </span>
+          </div>
+          <div className="border-t border-gray-200 pt-4">
+            <p className="text-gray-700">{formatDescription(capsule.description)}</p>
+          </div>
+          <div className="mt-4 text-sm text-gray-500">
+            Unlock Date: {new Date(capsule.date).toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            })}
+          </div>
         </div>
 
-        {/* Status Banner */}
-        {capsule.status === 'locked' && (
-          <div className="bg-memovault-salmon/10 border border-memovault-salmon rounded-lg p-6 mb-8">
-            <h2 className="text-xl font-semibold text-black mb-2">Time Until Unlock</h2>
-            <div className="text-3xl font-bold text-memovault-salmon">
-              {timeUntilUnlock}
-            </div>
-          </div>
-        )}
-
-        {/* Content */}
-        {capsule.status === 'unlocked' ? (
-          <div className="space-y-8">
-            {/* Text Content */}
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <div 
-                className="prose max-w-none"
-                dangerouslySetInnerHTML={{ __html: capsule.content }}
-              />
-            </div>
-
-            {/* Images Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {capsule.images.map((image, index) => (
-                <div key={index} className="relative h-64 rounded-lg overflow-hidden">
+        {/* Images Grid */}
+        {capsule.files && capsule.files.length > 0 && (
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <h2 className="text-xl font-semibold text-black mb-4">Images</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {capsule.files.map((file, index) => (
+                <div key={index} className="relative aspect-square">
                   <Image
-                    src={image}
-                    alt={`Memory ${index + 1}`}
+                    src={file}
+                    alt={`Image ${index + 1}`}
                     fill
-                    className="object-cover"
+                    className="object-cover rounded-lg"
                   />
                 </div>
               ))}
             </div>
           </div>
-        ) : (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold text-black mb-4">
-              This capsule is still locked
-            </h2>
-            <p className="text-black/60">
-              Return on {new Date(capsule.unlockDate).toLocaleDateString()} to view its contents
-            </p>
-          </div>
         )}
 
-        {/* Actions */}
-        <div className="mt-8 flex justify-end gap-4">
-          <button
-            onClick={() => router.back()}
-            className="px-6 py-2 border border-memovault-salmon text-memovault-salmon rounded-lg hover:bg-memovault-salmon hover:text-white transition-colors"
-          >
-            Back
-          </button>
-          {capsule.status === 'unlocked' && (
-            <button
-              onClick={() => {/* TODO: Implement share functionality */}}
-              className="px-6 py-2 bg-memovault-salmon text-white rounded-lg hover:bg-black transition-colors"
-            >
-              Share
-            </button>
-          )}
-        </div>
+        {/* Back Button */}
+        <button
+          onClick={() => router.push('/capsule-vault/capsules')}
+          className="mt-8 px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+        >
+          Back to Capsules
+        </button>
       </div>
-    </main>
+    </div>
   );
 }
