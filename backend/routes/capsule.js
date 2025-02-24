@@ -3,6 +3,7 @@ import {
     createCapsule,
     updateCapsule,
     getCapsules,
+    getCapsuleById,
 } from "../controllers/capsuleController.js";
 import { authenticate } from "../auth/verifyToken.js";
 
@@ -16,5 +17,8 @@ router.patch("/:id", authenticate, updateCapsule);
 
 // Get user's capsules (requires authentication)
 router.get("/", authenticate, getCapsules);
+
+// Get single capsule by ID (requires authentication)
+router.get("/:id", authenticate, getCapsuleById);
 
 export default router;
