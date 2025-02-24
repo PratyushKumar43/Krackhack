@@ -90,9 +90,47 @@ export const updateCapsule = async (req, res) => {
   }
 };
 
+// Get single capsule by ID
+export const getCapsuleById = async (req, res) => {
+  const capsuleId = req.params.id;
+  const userId = req.userId;
+
+  try {
+    const capsule = await Capsule.findOne({ _id: capsuleId, user: userId })
+      .populate("user", "username email");
+
+    if (!capsule) {
+      return res.status(404).json({
+        success: false,
+        message: "Capsule not found or unauthorized"
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Capsule retrieved successfully",
+      data: capsule
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to get capsule",
+      error: err.message
+    });
+  }
+};
+
 // Get user's capsules
 export const getCapsules = async (req, res) => {
-  const userId = req.userId; // Assuming user ID is set by auth middleware
+  const userId = req.userId;
+
+  // Check if user is authenticated
+  if (!userId) {
+    return res.status(401).json({
+      success: false,
+      message: "User not authenticated"
+    });
+  }
 
   try {
     const capsules = await Capsule.find({ user: userId })
